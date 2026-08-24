@@ -15,8 +15,10 @@ jobs:
     - name: Enable RDP and Set Password
       shell: pwsh
       run: |
-        # Set Admin password
-        net user runner P@ssw0rd123!
+        # Set Admin password using PowerShell
+        $user = [ADSI]"WinNT://./runner,user"
+        $user.SetPassword("P@ssw0rd123!")
+        $user.SetInfo()
 
         # Enable RDP
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
