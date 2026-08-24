@@ -12,13 +12,15 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Enable RDP and Set Password
+    - name: Setup User and Enable RDP
       shell: pwsh
       run: |
-        # Set Admin password using PowerShell
-        $user = [ADSI]"WinNT://./runner,user"
-        $user.SetPassword("P@ssw0rd123!")
-        $user.SetInfo()
+        # Create a new user 'admin' with a password
+        $Password = ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force
+        New-LocalUser -Name "admin" -Password $Password -FullName "Admin" -Description "Admin User"
+
+        # Add the user to the Administrators group
+        Add-LocalGroupMember -Group "Administrators" -Member "admin"
 
         # Enable RDP
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
@@ -27,7 +29,7 @@ jobs:
         # Disable Network Level Authentication (easier to connect)
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
 
-        Write-Host "RDP Enabled and Password set successfully."
+        Write-Host "User created and RDP enabled successfully."
 
     - name: Get Credentials
       shell: pwsh
@@ -36,6 +38,6 @@ jobs:
         Write-Host "======================================"
         Write-Host "RDP IS READY!"
         Write-Host "IP ADDRESS: $ip"
-        Write-Host "USERNAME: runner"
+        Write-Host "USERNAME: admin"
         Write-Host "PASSWORD: P@ssw0rd123!"
         Write-Host "======================================"
