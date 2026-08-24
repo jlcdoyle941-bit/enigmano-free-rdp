@@ -83,9 +83,20 @@ jobs:
         Write-Host "Configuring Chrome with security extensions..." -ForegroundColor Green
         
         # Create Chrome preferences for extensions
-        $ChromePrefs = @"
-{
-  "extensions": {
+             $ChromePrefs = @{
+        "extensions" = @{
+            "settings" = @{
+                "cjpalhdlnbpafiamejdnhcphjbkeiapm" = @{
+                    "state" = 1
+                    "was_installed_by_default" = $false
+                    "was_installed_by_oem" = $false
+                    "was_installed_by_custodian" = $false
+                    "creation_flags" = 1
+                }
+            }
+        }
+     }
+     $ChromePrefs | ConvertTo-Json -Depth 10 | Set-Content -Path "$env:ProgramFiles\Google\Chrome\Application\master_preferences"  "extensions": {
     "settings": {
       "cjpalhdlnbpafiamejdnhcphjbkeiagm": {
         "state": 1,
