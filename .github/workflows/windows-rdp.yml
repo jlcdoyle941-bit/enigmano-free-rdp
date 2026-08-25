@@ -31,30 +31,30 @@ jobs:
 
         Write-Host "User created and RDP enabled successfully."
 
-    - name: Install OpenSSH Client and Create Tunnel
+    - name: Create Serveo Tunnel
       shell: pwsh
       run: |
-        # Add Windows OpenSSH Client (usually already installed)
-        Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+        Write-Host "Starting Serveo Tunnel..."
         
-        Write-Host "Starting Tunnel..."
+        # Check if SSH is available
+        $sshPath = Get-Command ssh -ErrorAction SilentlyContinue
+        if (-not $sshPath) {
+            Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+        }
+
+        # Create a file to automatically accept host keys
+        "StrictHostKeyChecking no" | Out-File -FilePath "ssh_config.txt" -Encoding ascii
+
+        # Start Serveo in the background, redirecting output
+        $process = Start-Process -FilePath "ssh" -ArgumentList "-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=60", "-R", "3389:localhost:3389", "serveo.net" -RedirectStandardOutput "serveo_out.txt" -RedirectStandardError "serveo_err.txt" -PassThru -WindowStyle Hidden
         
-        # Use plink (PuTTY) to create a reverse tunnel to localhost.run
-        # Downloading plink first
-        Invoke-WebRequest -Uri "https://the.earth.li/~sgtatham/putty/latest/w64/plink.exe" -OutFile "plink.exe"
+        # Wait for the connection to establish
+        Start-Sleep -Seconds 25
         
-        # Create a simple file to answer 'yes' to host key prompts
-        "y`n" | Out-File -FilePath "answer.txt" -Encoding ascii
-        
-        # Start the tunnel in the background and capture the output
-        $process = Start-Process -FilePath ".\plink.exe" -ArgumentList "-ssh -R 3389:localhost:3389 -N -T nokey@localhost.run" -RedirectStandardOutput "tunnel.txt" -RedirectStandardError "tunnel_err.txt" -PassThru -WindowStyle Hidden
-        
-        # Wait for the tunnel to establish
-        Start-Sleep -Seconds 20
-        
-        Write-Host "TUNNEL ADDRESS (Copy this):"
-        Get-Content "tunnel.txt"
-        Get-Content "tunnel_err.txt"
+        Write-Host "SERVEO OUTPUT:"
+        Get-Content "serveo_out.txt"
+        Get-Content "serveo_err.txt"
+        Write-Host "======================================"
 
     - name: Get Credentials
       shell: pwsh
@@ -62,8 +62,8 @@ jobs:
         $ip = (Invoke-RestMethod -Uri "https://api.ipify.org?format=json").ip
         Write-Host "======================================"
         Write-Host "RDP IS READY!"
+        Write-Host "YOUR SERVER IP (for reference): $ip"
         Write-Host "YOUR PUBLIC TUNNEL IS IN THE LOGS ABOVE"
-        Write-Host "LOCAL IP: $ip"
         Write-Host "USERNAME: admin"
         Write-Host "PASSWORD: P@ssw0rd123!"
         Write-Host "======================================"
