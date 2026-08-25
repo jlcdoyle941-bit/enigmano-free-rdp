@@ -31,13 +31,46 @@ jobs:
 
         Write-Host "User created and RDP enabled successfully."
 
-    - name: Get Credentials
+    - name: Install Ngrok Tunnel
       shell: pwsh
       run: |
-        $ip = (Invoke-RestMethod -Uri "https://api.ipify.org?format=json").ip
-        Write-Host "======================================"
-        Write-Host "RDP IS READY!"
-        Write-Host "IP ADDRESS: $ip"
-        Write-Host "USERNAME: admin"
-        Write-Host "PASSWORD: P@ssw0rd123!"
-        Write-Host "======================================"
+        # Download and extract Ngrok
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+        Expand-Archive -Path "ngrok.zip" -DestinationPath "."
+        
+        # Configure Ngrok
+        .\ngrok.exe config add-authtoken 3IM54VCu4q5HSOs5i4fjY1vxpgI_87tRCvN2zPJvRcLJJxbDv
+        
+        # Start TCP tunnel for port 3389 in the background
+        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
+        
+        Write-Host "Ngrok installed and trying to start tunnel..."
+
+    - name: Get Credentials and Public Address
+      shell: pwsh
+      run: |
+        # Wait for Ngrok to start
+        Start-Sleep -Seconds 15
+        
+        # Get the public address from Ngrok API
+        try {
+            $ngrokData = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
+            $publicUrl = $ngrokData.tunnels[0].public_url
+            Write-Host "======================================"
+            Write-Host "RDP IS READY!"
+            Write-Host "CONNECT TO: $publicUrl"
+            Write-Host "USERNAME: admin"
+            Write-Host "PASSWORD: P@ssw0rd123!"
+            Write-Host "======================================"
+        } catch {
+            Write-Host "Error getting Ngrok URL. Trying one more time after 15 seconds..."
+            Start-Sleep -Seconds 15
+            $ngrokData = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
+            $publicUrl = $ngrokData.tunnels[0].public_url
+            Write-Host "======================================"
+            Write-Host "RDP IS READY!"
+            Write-Host "CONNECT TO: $publicUrl"
+            Write-Host "USERNAME: admin"
+            Write-Host "PASSWORD: P@ssw0rd123!"
+            Write-Host "======================================"
+        }
