@@ -31,10 +31,10 @@ jobs:
 
         Write-Host "User created and RDP enabled successfully."
 
-    - name: Create Serveo Tunnel
+    - name: Create Serveo Tunnel (Port 13389)
       shell: pwsh
       run: |
-        Write-Host "Starting Serveo Tunnel..."
+        Write-Host "Starting Serveo Tunnel on Port 13389..."
         
         # Check if SSH is available
         $sshPath = Get-Command ssh -ErrorAction SilentlyContinue
@@ -42,11 +42,8 @@ jobs:
             Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
         }
 
-        # Create a file to automatically accept host keys
-        "StrictHostKeyChecking no" | Out-File -FilePath "ssh_config.txt" -Encoding ascii
-
-        # Start Serveo in the background, redirecting output
-        $process = Start-Process -FilePath "ssh" -ArgumentList "-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=60", "-R", "3389:localhost:3389", "serveo.net" -RedirectStandardOutput "serveo_out.txt" -RedirectStandardError "serveo_err.txt" -PassThru -WindowStyle Hidden
+        # Start Serveo in the background, using port 13389 to bypass restrictions
+        $process = Start-Process -FilePath "ssh" -ArgumentList "-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=60", "-R", "13389:localhost:3389", "serveo.net" -RedirectStandardOutput "serveo_out.txt" -RedirectStandardError "serveo_err.txt" -PassThru -WindowStyle Hidden
         
         # Wait for the connection to establish
         Start-Sleep -Seconds 25
