@@ -21,35 +21,28 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
-        Write-Host "RDP Enabled successfully."
+        Write-Host "User created and RDP enabled successfully."
 
-    - name: Download LocalXpose and Start TCP Tunnel
+    - name: Start Cloudflared Quick Tunnel
       shell: pwsh
       run: |
-        Write-Host "Downloading LocalXpose..."
+        Write-Host "Downloading Cloudflared (Official Cloudflare Link)..."
         
-        # Download LocalXpose (using the official direct link)
-        try {
-            Invoke-WebRequest -Uri "https://api.localxpose.io/api/v2/downloads/localxpose_windows_amd64.zip" -OutFile "localxpose.zip"
-        } catch {
-            # Fallback to GitHub if the API fails
-            Invoke-WebRequest -Uri "https://github.com/localxpose/localxpose/releases/latest/download/localxpose_windows_amd64.zip" -OutFile "localxpose.zip"
-        }
+        # This is the official, stable, direct download link
+        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
         
-        Expand-Archive -Path "localxpose.zip" -DestinationPath "."
+        Write-Host "Successfully downloaded. Starting tunnel..."
         
-        Write-Host "Starting TCP tunnel on port 3389..."
+        # Start the tunnel in the background
+        $process = Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url http://localhost:3389" -RedirectStandardOutput "cf_out.txt" -RedirectStandardError "cf_err.txt" -PassThru -WindowStyle Hidden
         
-        # Start the tunnel in the background (No token required)
-        $process = Start-Process -FilePath ".\localxpose.exe" -ArgumentList "tcp 3389" -RedirectStandardOutput "lx_out.txt" -RedirectStandardError "lx_err.txt" -PassThru -WindowStyle Hidden
+        # Wait for the tunnel to establish
+        Start-Sleep -Seconds 30
         
-        # Wait for it to connect
-        Start-Sleep -Seconds 25
-        
-        Write-Host "================ LOCALXPOSE OUTPUT ================"
-        Get-Content "lx_out.txt"
-        Get-Content "lx_err.txt"
-        Write-Host "==================================================="
+        Write-Host "================ CLOUDFLARE LOGS ================"
+        Get-Content "cf_out.txt"
+        Get-Content "cf_err.txt"
+        Write-Host "=================================================="
         
         Write-Host "USERNAME: admin"
         Write-Host "PASSWORD: P@ssw0rd123!"
