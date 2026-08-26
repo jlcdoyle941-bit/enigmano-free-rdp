@@ -23,26 +23,27 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
         Write-Host "User created and RDP enabled successfully."
 
-    - name: Start Cloudflared Quick Tunnel
+    - name: Download Bore and Start TCP Tunnel
       shell: pwsh
       run: |
-        Write-Host "Downloading Cloudflared (Official Cloudflare Link)..."
+        Write-Host "Downloading Bore..."
         
-        # This is the official, stable, direct download link
-        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
+        # This is the EXACT official release link for Bore v0.5.0
+        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
+        Expand-Archive -Path "bore.zip" -DestinationPath "."
         
-        Write-Host "Successfully downloaded. Starting tunnel..."
+        Write-Host "Bore downloaded. Starting TCP tunnel..."
         
-        # Start the tunnel in the background
-        $process = Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url http://localhost:3389" -RedirectStandardOutput "cf_out.txt" -RedirectStandardError "cf_err.txt" -PassThru -WindowStyle Hidden
+        # Start the tunnel (Map external random port to local 3389)
+        $process = Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore_out.txt" -RedirectStandardError "bore_err.txt" -PassThru -WindowStyle Hidden
         
-        # Wait for the tunnel to establish
-        Start-Sleep -Seconds 30
+        # Wait for it to connect
+        Start-Sleep -Seconds 20
         
-        Write-Host "================ CLOUDFLARE LOGS ================"
-        Get-Content "cf_out.txt"
-        Get-Content "cf_err.txt"
-        Write-Host "=================================================="
+        Write-Host "================ BORE OUTPUT ================"
+        Get-Content "bore_out.txt"
+        Get-Content "bore_err.txt"
+        Write-Host "=============================================="
         
         Write-Host "USERNAME: admin"
         Write-Host "PASSWORD: P@ssw0rd123!"
