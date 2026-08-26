@@ -23,16 +23,16 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
         Write-Host "User created and RDP enabled successfully."
 
-    - name: Start Serveo Tunnel with Loop
+    - name: Start Serveo Tunnel (Port 13389)
       shell: pwsh
       run: |
-        Write-Host "Attempting to start Serveo tunnel..."
+        Write-Host "Attempting to start Serveo tunnel on port 13389..."
         
         # Check if SSH Client is installed
         Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0 | Out-Null
 
-        # Start tunnel in background
-        $process = Start-Process -FilePath "ssh" -ArgumentList "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=NUL", "-o", "ServerAliveInterval=60", "-R", "3389:localhost:3389", "-N", "-T", "serveo.net" -RedirectStandardOutput "serveo_out.txt" -RedirectStandardError "serveo_err.txt" -PassThru -WindowStyle Hidden
+        # Map EXTERNAL port 13389 to INTERNAL port 3389
+        $process = Start-Process -FilePath "ssh" -ArgumentList "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=NUL", "-o", "ServerAliveInterval=60", "-R", "13389:localhost:3389", "-N", "-T", "serveo.net" -RedirectStandardOutput "serveo_out.txt" -RedirectStandardError "serveo_err.txt" -PassThru -WindowStyle Hidden
         
         Write-Host "Waiting for tunnel to establish..."
         Start-Sleep -Seconds 30
@@ -51,7 +51,7 @@ jobs:
             $url = $matches[1]
             Write-Host "======================================"
             Write-Host "RDP IS READY!"
-            Write-Host "ENTER THIS IN RDP APP: $url"
+            Write-Host "ENTER THIS IN RDP APP: $url : 13389"
             Write-Host "USERNAME: admin"
             Write-Host "PASSWORD: P@ssw0rd123!"
             Write-Host "======================================"
@@ -63,7 +63,7 @@ jobs:
                 $url = $matches[1]
                 Write-Host "======================================"
                 Write-Host "RDP IS READY!"
-                Write-Host "ENTER THIS IN RDP APP: $url"
+                Write-Host "ENTER THIS IN RDP APP: $url : 13389"
                 Write-Host "USERNAME: admin"
                 Write-Host "PASSWORD: P@ssw0rd123!"
                 Write-Host "======================================"
