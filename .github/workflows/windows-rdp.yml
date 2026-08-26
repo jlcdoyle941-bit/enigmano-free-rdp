@@ -23,51 +23,47 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
         Write-Host "User created and RDP enabled successfully."
 
-    - name: Start Serveo Tunnel (Port 13389)
+    - name: Start Ngrok TCP Tunnel
       shell: pwsh
       run: |
-        Write-Host "Attempting to start Serveo tunnel on port 13389..."
+        # Download and extract Ngrok
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+        Expand-Archive -Path "ngrok.zip" -DestinationPath "."
         
-        # Check if SSH Client is installed
-        Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0 | Out-Null
+        # Configure Ngrok with your NEW VERIFIED token
+        .\ngrok.exe config add-authtoken 3IS2q79YVL7gDXoaWtzcsmb8Ma4_7pQ68v3dGKLiEkWSFoPWe
+        
+        # Start TCP tunnel for standard RDP port 3389
+        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
+        
+        Write-Host "Waiting for Ngrok to establish TCP tunnel..."
+        
+        # Retry loop to ensure we get the address
+        $connected = $false
+        for ($i = 0; $i -lt 15; $i++) {
+            Start-Sleep -Seconds 5
+            try {
+                $ngrokData = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
+                if ($ngrokData.tunnels.Count -gt 0) {
+                    $connected = $true
+                    break
+                }
+            } catch {
+                Write-Host "Ngrok not ready yet, retrying..."
+            }
+        }
 
-        # Map EXTERNAL port 13389 to INTERNAL port 3389
-        $process = Start-Process -FilePath "ssh" -ArgumentList "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=NUL", "-o", "ServerAliveInterval=60", "-R", "13389:localhost:3389", "-N", "-T", "serveo.net" -RedirectStandardOutput "serveo_out.txt" -RedirectStandardError "serveo_err.txt" -PassThru -WindowStyle Hidden
-        
-        Write-Host "Waiting for tunnel to establish..."
-        Start-Sleep -Seconds 30
-        
-        # Read the output
-        $output = Get-Content "serveo_out.txt"
-        $err = Get-Content "serveo_err.txt"
-        
-        Write-Host "================ OUTPUT ================"
-        Write-Output $output
-        Write-Output $err
-        Write-Host "========================================"
-        
-        # Extract the public URL
-        if ($err -match "(\w+\.serveo\.net)") {
-            $url = $matches[1]
+        if ($connected) {
+            $publicUrl = $ngrokData.tunnels[0].public_url
             Write-Host "======================================"
             Write-Host "RDP IS READY!"
-            Write-Host "ENTER THIS IN RDP APP: $url : 13389"
+            Write-Host "ENTER THIS IN RDP APP: $publicUrl"
             Write-Host "USERNAME: admin"
             Write-Host "PASSWORD: P@ssw0rd123!"
             Write-Host "======================================"
         } else {
-            Write-Host "No URL found yet. Trying to read again in 10 seconds..."
-            Start-Sleep -Seconds 10
-            $err = Get-Content "serveo_err.txt"
-            if ($err -match "(\w+\.serveo\.net)") {
-                $url = $matches[1]
-                Write-Host "======================================"
-                Write-Host "RDP IS READY!"
-                Write-Host "ENTER THIS IN RDP APP: $url : 13389"
-                Write-Host "USERNAME: admin"
-                Write-Host "PASSWORD: P@ssw0rd123!"
-                Write-Host "======================================"
-            } else {
-                Write-Host "Tunnel failed. Please check the output above."
-            }
+            Write-Host "======================================"
+            Write-Host "NGROK FAILED TO START."
+            Write-Host "Make sure you clicked the verification link in your email!"
+            Write-Host "======================================"
         }
