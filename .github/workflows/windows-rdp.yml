@@ -23,34 +23,30 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
         Write-Host "User created and RDP enabled successfully."
 
-    - name: Start Ngrok HTTP Tunnel
+    - name: Start Ngrok TCP Tunnel
       shell: pwsh
       run: |
-        # Download and extract Ngrok
         Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
         Expand-Archive -Path "ngrok.zip" -DestinationPath "."
-        
-        # Configure Ngrok with your NEW token
         .\ngrok.exe config add-authtoken 3IRvmW30OyczgxMYQHd5fOlCaVd_6ZdJ1diYDwEZNcLMDjRjm
         
-        # Start HTTP tunnel (allowed on free unverified accounts)
-        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "http 3389" -WindowStyle Hidden
+        # START A TCP TUNNEL (RAW PORT)
+        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
         
-        Write-Host "Ngrok starting, waiting for URL..."
-        Start-Sleep -Seconds 20
+        Write-Host "Waiting for TCP tunnel..."
+        Start-Sleep -Seconds 25
 
-        # Get the public address
+        # Get the RAW address
         try {
             $ngrokData = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
             $publicUrl = $ngrokData.tunnels[0].public_url
             
             Write-Host "======================================"
             Write-Host "RDP IS READY!"
-            Write-Host "CONNECT TO: $publicUrl"
+            Write-Host "ENTER THIS IN RDP APP: $publicUrl"
             Write-Host "USERNAME: admin"
             Write-Host "PASSWORD: P@ssw0rd123!"
             Write-Host "======================================"
         } catch {
-            Write-Host "Failed to get URL. Please verify your Ngrok email and token."
-            Write-Host "Error: $_"
+            Write-Host "Error retrieving tunnel: $_"
         }
