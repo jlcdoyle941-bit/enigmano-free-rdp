@@ -23,31 +23,34 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
         Write-Host "User created and RDP enabled successfully."
 
-    - name: Create TCP Tunnel (Bypass Port 3389)
+    - name: Start Ngrok HTTP Tunnel
       shell: pwsh
       run: |
-        Write-Host "Starting tunnel on high port 13389..."
+        # Download and extract Ngrok
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+        Expand-Archive -Path "ngrok.zip" -DestinationPath "."
         
-        Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0 | Out-Null
+        # Configure Ngrok with your NEW token
+        .\ngrok.exe config add-authtoken 3IRvmW30OyczgxMYQHd5fOlCaVd_6ZdJ1diYDwEZNcLMDjRjm
+        
+        # Start HTTP tunnel (allowed on free unverified accounts)
+        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "http 3389" -WindowStyle Hidden
+        
+        Write-Host "Ngrok starting, waiting for URL..."
+        Start-Sleep -Seconds 20
 
-        # Map external port 13389 to internal port 3389
-        $process = Start-Process -FilePath "ssh" -ArgumentList "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=NUL", "-o", "ServerAliveInterval=60", "-o", "ExitOnForwardFailure=no", "-R", "13389:localhost:3389", "-N", "-T", "nokey@localhost.run" -RedirectStandardOutput "tunnel_out.txt" -RedirectStandardError "tunnel_err.txt" -PassThru -WindowStyle Hidden
-        
-        Start-Sleep -Seconds 30
-        
-        Write-Host "TUNNEL OUTPUT:"
-        Get-Content "tunnel_out.txt"
-        Get-Content "tunnel_err.txt"
-        Write-Host "======================================"
-
-    - name: Get Credentials
-      shell: pwsh
-      run: |
-        $ip = (Invoke-RestMethod -Uri "https://api.ipify.org?format=json").ip
-        Write-Host "======================================"
-        Write-Host "RDP IS READY!"
-        Write-Host "YOUR SERVER IP (for reference): $ip"
-        Write-Host "YOUR PUBLIC TUNNEL IS IN THE LOGS ABOVE"
-        Write-Host "USERNAME: admin"
-        Write-Host "PASSWORD: P@ssw0rd123!"
-        Write-Host "======================================"
+        # Get the public address
+        try {
+            $ngrokData = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
+            $publicUrl = $ngrokData.tunnels[0].public_url
+            
+            Write-Host "======================================"
+            Write-Host "RDP IS READY!"
+            Write-Host "CONNECT TO: $publicUrl"
+            Write-Host "USERNAME: admin"
+            Write-Host "PASSWORD: P@ssw0rd123!"
+            Write-Host "======================================"
+        } catch {
+            Write-Host "Failed to get URL. Please verify your Ngrok email and token."
+            Write-Host "Error: $_"
+        }
