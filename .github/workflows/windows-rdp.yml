@@ -23,30 +23,44 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
         Write-Host "User created and RDP enabled successfully."
 
-    - name: Start Ngrok TCP Tunnel
+    - name: Start Ngrok TCP Tunnel (Port 13389)
       shell: pwsh
       run: |
         Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
         Expand-Archive -Path "ngrok.zip" -DestinationPath "."
-        .\ngrok.exe config add-authtoken 3IRvmW30OyczgxMYQHd5fOlCaVd_6ZdJ1diYDwEZNcLMDjRjm
+        .\ngrok.exe config add-authtoken 3IRyfbzguT1GGSC1uGR7LQn8g87_5L1goPUn35g5WwZuw9ty6
         
-        # START A TCP TUNNEL (RAW PORT)
-        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
+        # START A TCP TUNNEL on port 13389
+        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 13389" -WindowStyle Hidden
         
         Write-Host "Waiting for TCP tunnel..."
-        Start-Sleep -Seconds 25
+        
+        # Retry loop to wait for Ngrok to boot
+        $connected = $false
+        for ($i = 0; $i -lt 10; $i++) {
+            Start-Sleep -Seconds 5
+            try {
+                $ngrokData = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
+                if ($ngrokData.tunnels.Count -gt 0) {
+                    $connected = $true
+                    break
+                }
+            } catch {
+                Write-Host "Ngrok not ready yet, retrying..."
+            }
+        }
 
-        # Get the RAW address
-        try {
-            $ngrokData = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
+        if ($connected) {
             $publicUrl = $ngrokData.tunnels[0].public_url
-            
             Write-Host "======================================"
             Write-Host "RDP IS READY!"
             Write-Host "ENTER THIS IN RDP APP: $publicUrl"
             Write-Host "USERNAME: admin"
             Write-Host "PASSWORD: P@ssw0rd123!"
             Write-Host "======================================"
-        } catch {
-            Write-Host "Error retrieving tunnel: $_"
+        } else {
+            Write-Host "======================================"
+            Write-Host "NGROK FAILED TO START TCP TUNNEL."
+            Write-Host "Check your Ngrok dashboard. You MUST verify your email to use TCP (RDP)."
+            Write-Host "======================================"
         }
