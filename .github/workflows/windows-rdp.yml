@@ -21,49 +21,24 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
-        Write-Host "User created and RDP enabled successfully."
+        Write-Host "RDP Enabled successfully."
 
-    - name: Start Ngrok TCP Tunnel
+    - name: Download Bore and Start Tunnel
       shell: pwsh
       run: |
-        # Download and extract Ngrok
-        Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
-        Expand-Archive -Path "ngrok.zip" -DestinationPath "."
+        # Download the bore client for Windows
+        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/latest/download/bore-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
+        Expand-Archive -Path "bore.zip" -DestinationPath "."
         
-        # Configure Ngrok with your NEW VERIFIED token
-        .\ngrok.exe config add-authtoken 3IS2q79YVL7gDXoaWtzcsmb8Ma4_7pQ68v3dGKLiEkWSFoPWe
+        # Start the tunnel in the background
+        $process = Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore_out.txt" -RedirectStandardError "bore_err.txt" -PassThru -WindowStyle Hidden
         
-        # Start TCP tunnel for standard RDP port 3389
-        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -WindowStyle Hidden
+        Start-Sleep -Seconds 15
         
-        Write-Host "Waiting for Ngrok to establish TCP tunnel..."
+        Write-Host "================ BORE OUTPUT ================"
+        Get-Content "bore_out.txt"
+        Get-Content "bore_err.txt"
+        Write-Host "==============================================="
         
-        # Retry loop to ensure we get the address
-        $connected = $false
-        for ($i = 0; $i -lt 15; $i++) {
-            Start-Sleep -Seconds 5
-            try {
-                $ngrokData = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
-                if ($ngrokData.tunnels.Count -gt 0) {
-                    $connected = $true
-                    break
-                }
-            } catch {
-                Write-Host "Ngrok not ready yet, retrying..."
-            }
-        }
-
-        if ($connected) {
-            $publicUrl = $ngrokData.tunnels[0].public_url
-            Write-Host "======================================"
-            Write-Host "RDP IS READY!"
-            Write-Host "ENTER THIS IN RDP APP: $publicUrl"
-            Write-Host "USERNAME: admin"
-            Write-Host "PASSWORD: P@ssw0rd123!"
-            Write-Host "======================================"
-        } else {
-            Write-Host "======================================"
-            Write-Host "NGROK FAILED TO START."
-            Write-Host "Make sure you clicked the verification link in your email!"
-            Write-Host "======================================"
-        }
+        Write-Host "USERNAME: admin"
+        Write-Host "PASSWORD: P@ssw0rd123!"
