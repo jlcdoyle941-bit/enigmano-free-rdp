@@ -23,22 +23,33 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
         Write-Host "RDP Enabled successfully."
 
-    - name: Download Bore and Start Tunnel
+    - name: Download LocalXpose and Start TCP Tunnel
       shell: pwsh
       run: |
-        # Download the bore client for Windows
-        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/latest/download/bore-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
-        Expand-Archive -Path "bore.zip" -DestinationPath "."
+        Write-Host "Downloading LocalXpose..."
         
-        # Start the tunnel in the background
-        $process = Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore_out.txt" -RedirectStandardError "bore_err.txt" -PassThru -WindowStyle Hidden
+        # Download LocalXpose (using the official direct link)
+        try {
+            Invoke-WebRequest -Uri "https://api.localxpose.io/api/v2/downloads/localxpose_windows_amd64.zip" -OutFile "localxpose.zip"
+        } catch {
+            # Fallback to GitHub if the API fails
+            Invoke-WebRequest -Uri "https://github.com/localxpose/localxpose/releases/latest/download/localxpose_windows_amd64.zip" -OutFile "localxpose.zip"
+        }
         
-        Start-Sleep -Seconds 15
+        Expand-Archive -Path "localxpose.zip" -DestinationPath "."
         
-        Write-Host "================ BORE OUTPUT ================"
-        Get-Content "bore_out.txt"
-        Get-Content "bore_err.txt"
-        Write-Host "==============================================="
+        Write-Host "Starting TCP tunnel on port 3389..."
+        
+        # Start the tunnel in the background (No token required)
+        $process = Start-Process -FilePath ".\localxpose.exe" -ArgumentList "tcp 3389" -RedirectStandardOutput "lx_out.txt" -RedirectStandardError "lx_err.txt" -PassThru -WindowStyle Hidden
+        
+        # Wait for it to connect
+        Start-Sleep -Seconds 25
+        
+        Write-Host "================ LOCALXPOSE OUTPUT ================"
+        Get-Content "lx_out.txt"
+        Get-Content "lx_err.txt"
+        Write-Host "==================================================="
         
         Write-Host "USERNAME: admin"
         Write-Host "PASSWORD: P@ssw0rd123!"
